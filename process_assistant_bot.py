@@ -1,4 +1,5 @@
 import asyncio
+from textwrap import dedent
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from pyrogram.enums import ParseMode
@@ -20,13 +21,7 @@ SESSION_NAME = "process_bot_session"
 # =========================================================
 # Get pyrogram client started
 # =========================================================
-app = Client(
-    SESSION_NAME,
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-    parse_mode=ParseMode.MARKDOWN
-)
+app = Client( SESSION_NAME, api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN, parse_mode=ParseMode.MARKDOWN )
 
 
 # =========================================================
@@ -35,45 +30,41 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
-    """
-    Responde ao comando /start.
-    O modo de análise é definido globalmente para MARKDOWN.
-    """
+ 
     user_name = message.from_user.first_name if message.from_user else "usuário"
-    
-    await message.reply_text(
-        f"Olá, **{user_name}**! Seu bot Pyrogram está funcionando usando modo MARKDOWN.",
+    initial_markup = ReplyKeyboardMarkup(
+        [
+            [KeyboardButton('Abertura'), KeyboardButton('Fechamento')],
+        ],
+        resize_keyboard=True
     )
+
+    await message.reply_text(
+        f"Olá, **{user_name}** Bem-vindo! \nEsse bot o ajudará nos processos de abertura e fechamento de loja.",
+        reply_markup = initial_markup
+    )
+
+
+# Opening buttons
+branch_rows  = [ [KeyboardButton(branch) for branch in branchs[i:i+2]] for i in range(0, len(branchs), 2) ]
+opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
 
 @app.on_message(filters.text & ~filters.command("start"))
-async def echo_message(client: Client, message: Message):
-    """
-    Responde a qualquer texto que não seja um comando.
-    O modo de análise é definido globalmente para HTML.
-    """
-    opcao_a = KeyboardButton("Opção A")
-    opcao_b = KeyboardButton("/status") # Pode ser um comando
+async def keyboard_answer(client: Client, message: Message):
     
-    # 2. Montagem do teclado
-    reply_keyboard = ReplyKeyboardMarkup(
-        [
-            # Linha 1
-            [opcao_a, opcao_b], 
-            # Linha 2
-            [KeyboardButton("Fechar Teclado")]
-        ],
-        resize_keyboard=True,   # Reduz o tamanho do teclado
-        one_time_keyboard=False # Mantém o teclado ativo
-    )
+    if message.text == 'Abertura':
+        answer = dedent('''
+        BOM DIA ☀️!
+        VOCÊ SELECIONOU ABERTURA.
+        VAMOS COMEÇAR O PROCEDIMENTO DE ABERTURA.
+        SELECIONE SUA FILIAL PARA INICIAR O PROCESSO ABERTURA DE LOJA.
+        ''')
 
-    await message.reply_text(
-        "<b>Botões de Resposta:</b> Use os botões abaixo para enviar texto rápido.",
-        reply_markup=reply_keyboard
-    )
+        await message.reply_text(
+            answer,
+            reply_markup = opening_buttons
+        )
 
-    await message.reply_text(
-        f"Você disse: __{message.text}__",
-    )
 
 
 # =========================================================
