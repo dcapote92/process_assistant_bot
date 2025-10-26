@@ -1,65 +1,103 @@
 import asyncio
-import logging
-from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
+from pyrogram import Client, filters, idle
+from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from pyrogram.enums import ParseMode
+from branch import branchs
+import utils
 
 
-# 1. Configuração
+# Need to create an app on my.telegram.org in order to receive API_ID and API_HASH 
+API_ID = 29867141 
+API_HASH = 'd5956629151b2ffc1d26a640d99825ef'
 
-# Substitua 'SEU_TOKEN_AQUI' pelo seu token real do BotFather
-TOKEN = '7992622235:AAGYKClKWziOIBFI_QkUBaXKT-HLTn_4LNw' 
+# Get your token on both father
+BOT_TOKEN = '7992622235:AAGYKClKWziOIBFI_QkUBaXKT-HLTn_4LNw'
 
-# Configuração de logging para ver o que o bot está fazendo
-logging.basicConfig(level=logging.INFO)
-
-# Inicializa o bot e o dispatcher
-# ParseMode.HTML é opcional, permite usar formatação HTML nas mensagens
-bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
-dp = Dispatcher()
+# this is justo set a session name ( can be anything)
+SESSION_NAME = "process_bot_session" 
 
 
-# 2. Handlers de Mensagem
+# =========================================================
+# Get pyrogram client started
+# =========================================================
+app = Client(
+    SESSION_NAME,
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN,
+    parse_mode=ParseMode.MARKDOWN
+)
 
-# Handler para o comando /start e /help
-@dp.message(commands=["start", "help"])
-async def send_welcome(message: types.Message):
+
+# =========================================================
+# HANDLERS
+# =========================================================
+
+@app.on_message(filters.command("start"))
+async def start_command(client: Client, message: Message):
     """
-    Este handler será chamado quando o usuário enviar os comandos /start ou /help
+    Responde ao comando /start.
+    O modo de análise é definido globalmente para MARKDOWN.
     """
-    await message.reply(
-        "Olá! Eu sou o Bot Eco, alimentado por aiogram. \\n"
-        "Envie-me qualquer mensagem e eu a responderei!"
+    user_name = message.from_user.first_name if message.from_user else "usuário"
+    
+    await message.reply_text(
+        f"Olá, **{user_name}**! Seu bot Pyrogram está funcionando usando modo MARKDOWN.",
+    )
+
+@app.on_message(filters.text & ~filters.command("start"))
+async def echo_message(client: Client, message: Message):
+    """
+    Responde a qualquer texto que não seja um comando.
+    O modo de análise é definido globalmente para HTML.
+    """
+    opcao_a = KeyboardButton("Opção A")
+    opcao_b = KeyboardButton("/status") # Pode ser um comando
+    
+    # 2. Montagem do teclado
+    reply_keyboard = ReplyKeyboardMarkup(
+        [
+            # Linha 1
+            [opcao_a, opcao_b], 
+            # Linha 2
+            [KeyboardButton("Fechar Teclado")]
+        ],
+        resize_keyboard=True,   # Reduz o tamanho do teclado
+        one_time_keyboard=False # Mantém o teclado ativo
+    )
+
+    await message.reply_text(
+        "<b>Botões de Resposta:</b> Use os botões abaixo para enviar texto rápido.",
+        reply_markup=reply_keyboard
+    )
+
+    await message.reply_text(
+        f"Você disse: __{message.text}__",
     )
 
 
-# Handler que responde a *todas* as outras mensagens de texto
-@dp.message()
-async def echo_handler(message: types.Message):
-    """
-    Este handler simplesmente responde à mensagem do usuário com o mesmo texto.
-    O método 'reply' envia a mensagem como uma resposta direta (citando a mensagem original).
-    """
-    try:
-        # Pega o texto da mensagem original e envia de volta
-        await message.reply(f"Você disse: <b>{message.text}</b>")
-    except TypeError:
-        # Trata casos onde a mensagem pode não ser de texto (ex: sticker, foto)
-        # e o atributo 'text' não existe.
-        await message.reply("Desculpe, só posso fazer 'echo' de mensagens de texto por enquanto.")
-
-
-# 3. Execução Principal
-
-async def main():
-    # Inicia o bot e o dispatcher para receber atualizações
-    # 'skip_updates=True' garante que o bot ignore todas as mensagens que chegaram
-    # enquanto ele estava offline.
-    await dp.start_polling(bot, skip_updates=True)
+# =========================================================
+# EXECUÇÃO PRINCIPAL
+# =========================================================
 
 if __name__ == "__main__":
-    # Roda a função 'main' de forma assíncrona
     try:
-        asyncio.run(main())
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    async def main_pyrogram():
+        print("Bot sendo inicializado...")
+        await app.start()
+        print("Bot rodando. Pressione Ctrl+C para parar.")
+        await idle()
+        await app.stop()
+        print("Bot parou.")
+
+    try:
+        loop.run_until_complete(main_pyrogram())
     except KeyboardInterrupt:
-        # Permite parar o bot com Ctrl+C no terminal
-        print("Bot Desligado")
+        print("\nBot interrompido pelo usuário.")
+    except Exception as e:
+        print(f"Ocorreu um erro fatal: {e}")
