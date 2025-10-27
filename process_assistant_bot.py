@@ -2,7 +2,7 @@ import asyncio
 import re
 from textwrap import dedent
 from pyrogram import Client, filters, idle
-from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto
 from pyrogram.enums import ParseMode
 from branch import branchs
 from utils import find_branch, branch_rows
@@ -31,6 +31,7 @@ app = Client( SESSION_NAME, api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 
 escaped_branchs = [re.escape(b) for b in branchs]
 regex_pattern = '^(' + '|'.join(escaped_branchs) + ')$'
+USER_DATA = {}
 
 
 @app.on_message(filters.command("start"))
@@ -70,6 +71,8 @@ async def on_opening(client, message):
 @app.on_message(filters.text & filters.regex(regex_pattern)) # branch selection
 async def on_branch_selection(client, message):
     branch = message.text
+    user_id = message.from_user.id
+    USER_DATA[user_id] = {'branch': branch, 'photos':[]}
     answer = dedent(f'''
     {branch}
     Por favor, anexe todos os prints disponíveis
@@ -85,12 +88,31 @@ async def on_branch_selection(client, message):
         )
     )
 
+@app.on_message(filters.photo & filters.private)
+async def on_photo_received(client, message):
+    user_id = message.from_user.id
+    if user_id in USER_DATA and 'photos' in USER_DATA[user_id]:
+        USER_DATA[user_id]['photos'].append(message.photo.file_id)
+        await message.reply_text('✅ Foto recebida. Envie mais ou conclua o processo.')
+    else:
+        await message.reply_text('🛑 Fotos não são permitidas neste estagio! 🛑')
+
 @app.on_message(filters.text & filters.regex('^Concluir Abertura'))
 async def on_opening_finalization(client, message):
+    user_id = message.from_user.id
     user_name = message.from_user.first_name if message.from_user else "usuário"
     match = re.search(r'Concluir Abertura (.*)', message.text)
     branch = match.group(1).strip() if match else 'Filial Desconhecida'
 
+    loaded_photos = USER_DATA.get(user_id, {}).get('photos', [])
+
+    initial_markup =  ReplyKeyboardMarkup(
+                [
+                    [KeyboardButton('Abertura 🌕'), KeyboardButton('Fechamento 🌑')],
+                ],
+                resize_keyboard=True
+            )
+    
     answer = dedent(f'''
     PROCESSO DE ABERTURA FINALIZADO COM SUCESSO.
     ◾ABERTURA ✅ 
@@ -98,15 +120,34 @@ async def on_opening_finalization(client, message):
     ◾👨‍💻T.I: {user_name}!
     ÓTIMO DIA, E BOM TRABALHO!'''
     )
-    await message.reply_text(
-        answer,
-        reply_markup = ReplyKeyboardMarkup(
-            [
-                [KeyboardButton('Abertura 🌕'), KeyboardButton('Fechamento 🌑')],
-            ],
-            resize_keyboard=True
-        ))
 
+    if loaded_photos:
+        media_group = [
+            InputMediaPhoto(media=file_id, caption=answer) if i == 0
+            else InputMediaPhoto(media=file_id)
+            for i, file_id in enumerate(loaded_photos)
+        ]
+
+        await client.send_media_group(
+            chat_id= message.chat.id,
+            media= media_group
+        )
+    else:
+        await message.reply_text(
+            answer,
+            reply_markup = initial_markup
+        )
+
+    # cleaning user data    
+    if user_id in USER_DATA:
+        del USER_DATA[user_id]
+
+
+    # send initial keyboard 
+    if loaded_photos:
+        await message.reply_text(
+            reply_markup= initial_markup
+        )
 
 # =========================================================
 # EXECUÇÃO PRINCIPAL
