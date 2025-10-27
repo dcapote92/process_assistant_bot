@@ -1,10 +1,11 @@
 import asyncio
+import re
 from textwrap import dedent
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from pyrogram.enums import ParseMode
 from branch import branchs
-import utils
+from utils import find_branch, branch_rows
 
 
 # Need to create an app on my.telegram.org in order to receive API_ID and API_HASH 
@@ -28,43 +29,83 @@ app = Client( SESSION_NAME, api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 # HANDLERS
 # =========================================================
 
+escaped_branchs = [re.escape(b) for b in branchs]
+regex_pattern = '^(' + '|'.join(escaped_branchs) + ')$'
+
+
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
  
     user_name = message.from_user.first_name if message.from_user else "usuário"
     initial_markup = ReplyKeyboardMarkup(
         [
-            [KeyboardButton('Abertura'), KeyboardButton('Fechamento')],
+            [KeyboardButton('Abertura 🌕'), KeyboardButton('Fechamento 🌑')],
         ],
         resize_keyboard=True
     )
 
     await message.reply_text(
-        f"Olá, **{user_name}** Bem-vindo! \nEsse bot o ajudará nos processos de abertura e fechamento de loja.",
+        dedent(f'''
+                Olá, **{user_name}** Bem-vindo!
+                Esse bot o ajudará nos processos de **Abertura** e **Fechamento**.
+                Para começar selecione o processo a realizar.'''
+                ),
         reply_markup = initial_markup
     )
 
+@app.on_message(filters.text & filters.regex('Abertura 🌕'))
+async def on_opening(client, message):
+    opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
+    answer = dedent('''
+    Bom Dia ☀️!
+    Você selecionou Abertura.
+    Vamos começar o processo, por favor, selecione sua filial:'''
+    )
 
-# Opening buttons
-branch_rows  = [ [KeyboardButton(branch) for branch in branchs[i:i+2]] for i in range(0, len(branchs), 2) ]
-opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
+    await message.reply_text(
+        answer,
+        reply_markup = opening_buttons
+    )
 
-@app.on_message(filters.text & ~filters.command("start"))
-async def keyboard_answer(client: Client, message: Message):
-    
-    if message.text == 'Abertura':
-        answer = dedent('''
-        BOM DIA ☀️!
-        VOCÊ SELECIONOU ABERTURA.
-        VAMOS COMEÇAR O PROCEDIMENTO DE ABERTURA.
-        SELECIONE SUA FILIAL PARA INICIAR O PROCESSO ABERTURA DE LOJA.
-        ''')
+@app.on_message(filters.text & filters.regex(regex_pattern)) # branch selection
+async def on_branch_selection(client, message):
+    branch = message.text
+    answer = dedent(f'''
+    {branch}
+    Por favor, anexe todos os prints disponíveis
+    ⚠️ Uma vez anexados os prints, pode concluir o processo.'''
+    )
 
-        await message.reply_text(
-            answer,
-            reply_markup = opening_buttons
+    await message.reply_text(
+        answer,
+        reply_markup = ReplyKeyboardMarkup([
+            [KeyboardButton('Concluir Abertura '+ branch)]
+        ],
+        resize_keyboard=True
         )
+    )
 
+@app.on_message(filters.text & filters.regex('^Concluir Abertura'))
+async def on_opening_finalization(client, message):
+    user_name = message.from_user.first_name if message.from_user else "usuário"
+    match = re.search(r'Concluir Abertura (.*)', message.text)
+    branch = match.group(1).strip() if match else 'Filial Desconhecida'
+
+    answer = dedent(f'''
+    PROCESSO DE ABERTURA FINALIZADO COM SUCESSO.
+    ◾ABERTURA ✅ 
+    ◾{branch}
+    ◾👨‍💻T.I: {user_name}!
+    ÓTIMO DIA, E BOM TRABALHO!'''
+    )
+    await message.reply_text(
+        answer,
+        reply_markup = ReplyKeyboardMarkup(
+            [
+                [KeyboardButton('Abertura 🌕'), KeyboardButton('Fechamento 🌑')],
+            ],
+            resize_keyboard=True
+        ))
 
 
 # =========================================================
