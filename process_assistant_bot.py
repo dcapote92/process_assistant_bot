@@ -35,8 +35,6 @@ USER_DATA = {}
 TARGET_GROUP_IDS = [
    -1001933126601, # Suporte T.I Regional Ceará
    # -1002669184395, # Suporte T.I - Lojas
-    7992622235
-
 ]
 
 @app.on_message(filters.command("start"))
@@ -206,9 +204,10 @@ async def on_opening_finalization(client, message):
             )
     final_answer = answer if answer else 'Proceso finalizado.'
 
-
+    media_group = None
 
     if loaded_photos:
+        
         media_group = [
             InputMediaPhoto(media=file_id, caption=final_answer) if i == 0
             else InputMediaPhoto(media=file_id)
@@ -235,6 +234,21 @@ async def on_opening_finalization(client, message):
         '✅ Processo concluído e registrado nos canais de monitoramento. Selecione um novo processo para começar:',
         reply_markup= initial_markup
     )
+
+    if media_group:
+        await client.send_media_group(
+            chat_id=message.chat.id,
+            media=media_group
+        )
+        await message.reply_text(
+            '✅ Processo concluído e registrado nos canais de monitoramento. Selecione um novo processo para começar:',
+            reply_markup=initial_markup
+        )
+    else:
+        await message.reply_text(
+            final_answer + '\n\n✅ Processo concluído e registrado nos canais de monitoramento. Selecione um novo processo para começar:',
+            reply_markup=initial_markup
+        )
 
     # cleaning user data    
     if user_id in USER_DATA:
