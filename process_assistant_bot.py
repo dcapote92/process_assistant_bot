@@ -32,7 +32,12 @@ app = Client( SESSION_NAME, api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 escaped_branchs = [re.escape(b) for b in branchs]
 regex_pattern = '^(' + '|'.join(escaped_branchs) + ')$'
 USER_DATA = {}
+TARGET_GROUP_IDS = [
+   -1001933126601, # Suporte T.I Regional Ceará
+   # -1002669184395, # Suporte T.I - Lojas
+    7992622235
 
+]
 
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
@@ -88,7 +93,13 @@ async def on_closing(client, message):
 @app.on_message(filters.text & filters.regex(regex_pattern)) # branch selection
 async def on_branch_selection(client, message):
     user_id = message.from_user.id
-    USER_DATA[user_id]['branch'] =  message.text
+
+    if user_id not in USER_DATA or not USER_DATA[user_id].get('process'):
+        return await message.reply_text("🛑 Por favor, comece selecionando 'Abertura 🌕' ou 'Fechamento 🌑'.")
+
+    user_data = USER_DATA[user_id]
+    user_data['branch'] = message.text
+
     answer = dedent(f'''
     {USER_DATA[user_id]['branch']}
     Por favor, anexe todos os prints disponíveis
@@ -195,6 +206,8 @@ async def on_opening_finalization(client, message):
             )
     final_answer = answer if answer else 'Proceso finalizado.'
 
+
+
     if loaded_photos:
         media_group = [
             InputMediaPhoto(media=file_id, caption=final_answer) if i == 0
@@ -202,21 +215,26 @@ async def on_opening_finalization(client, message):
             for i, file_id in enumerate(loaded_photos)
         ]
 
-        await client.send_media_group(
-            chat_id= message.chat.id,
-            media= media_group
-        )
+    for target_id in TARGET_GROUP_IDS:
+        try:
+            if media_group:
+                await client.send_media_group(
+                    chat_id = target_id,
+                    media = media_group
+                )
+            else:
+                await client.send_message(
+                    chat_id = target_id,
+                    text = final_answer
+                )
+        except Exception as e:
+            print(f'Erro ao enviar relatorio de processo para o chat {target_id}: {e}')
 
-        await message.reply_text(
-            'Selecione um novo processo se desejar.',
-            reply_markup= initial_markup
-        )
-
-    else:
-        await message.reply_text(
-            final_answer,
-            reply_markup = initial_markup
-        )
+        
+    await message.reply_text(
+        '✅ Processo concluído e registrado nos canais de monitoramento. Selecione um novo processo para começar:',
+        reply_markup= initial_markup
+    )
 
     # cleaning user data    
     if user_id in USER_DATA:
