@@ -56,6 +56,8 @@ async def start_command(client: Client, message: Message):
 
 @app.on_message(filters.text & filters.regex('Abertura 🌕'))
 async def on_opening(client, message):
+    user_id = message.from_user.id
+    USER_DATA[user_id] = {'process': 'opening', 'branch': None, 'photos': [], 'consistency': True}
     opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
     answer = dedent('''
     Bom Dia ☀️!
@@ -68,27 +70,75 @@ async def on_opening(client, message):
         reply_markup = opening_buttons
     )
 
+@app.on_message(filters.text & filters.regex('Fechamento 🌑'))
+async def on_closing(client, message):
+    user_id = message.from_user.id
+    USER_DATA[user_id] = {'process': 'closing', 'branch': None, 'photos': [], 'consistency': True}
+    opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
+    answer = dedent('''
+    Boa Noite 🌑!
+    Você selecionou Fechamento.
+    Vamos começar o processo, por favor, selecione sua filial:'''
+    )
+    await message.reply_text(
+        answer,
+        reply_markup = opening_buttons
+    )
+
 @app.on_message(filters.text & filters.regex(regex_pattern)) # branch selection
 async def on_branch_selection(client, message):
-    branch = message.text
     user_id = message.from_user.id
-    USER_DATA[user_id] = {'branch': branch, 'photos':[]}
+    USER_DATA[user_id]['branch'] =  message.text
     answer = dedent(f'''
-    {branch}
+    {USER_DATA[user_id]['branch']}
     Por favor, anexe todos os prints disponíveis
     ⚠️ Uma vez anexados os prints, pode concluir o processo.'''
+    ) if USER_DATA[user_id]['process'] == 'opening' else dedent(f'''
+    {USER_DATA[user_id]['branch']}
+    Por favor, anexe todos os prints disponíveis
+    e selecione o **status** da Consistência.'''
     )
 
     await message.reply_text(
         answer,
         reply_markup = ReplyKeyboardMarkup([
-            [KeyboardButton('Concluir Abertura '+ branch)]
+            [KeyboardButton('Concluir Processo '+ USER_DATA[user_id]['branch'])]
+        ],
+        resize_keyboard=True
+        ) if USER_DATA[user_id]['process'] == 'opening' else  ReplyKeyboardMarkup([
+            [KeyboardButton('Consistência ✅')],
+            [KeyboardButton('Consistência ❌')]
         ],
         resize_keyboard=True
         )
     )
 
-@app.on_message(filters.photo & filters.private)
+@app.on_message(filters.text & filters.regex('Consistência ❌'))
+async def on_consistency_fail(client, message):
+    user_id = message.from_user.id
+    answer = 'Agora pode concluir o processo'
+    USER_DATA[user_id]['consistency'] = False
+    await message.reply_text(
+        answer ,
+         reply_markup = ReplyKeyboardMarkup([
+            [KeyboardButton('Concluir Processo '+ USER_DATA[user_id]['branch'])]
+        ]
+        )
+    )  
+
+@app.on_message(filters.text & filters.regex('Consistência ✅'))
+async def on_consistency(client, message):
+    user_id = message.from_user.id
+    answer = 'Agora pode concluir o processo'
+    await message.reply_text(
+        answer ,
+         reply_markup = ReplyKeyboardMarkup([
+            [KeyboardButton('Concluir Processo '+ USER_DATA[user_id]['branch'])]
+        ]
+        )
+    )  
+
+@app.on_message(filters.photo & filters.private) # waiting for photos
 async def on_photo_received(client, message):
     user_id = message.from_user.id
     if user_id in USER_DATA and 'photos' in USER_DATA[user_id]:
@@ -97,13 +147,13 @@ async def on_photo_received(client, message):
     else:
         await message.reply_text('🛑 Fotos não são permitidas neste estagio! 🛑')
 
-@app.on_message(filters.text & filters.regex('^Concluir Abertura'))
+@app.on_message(filters.text & filters.regex('^Concluir Processo'))
 async def on_opening_finalization(client, message):
     user_id = message.from_user.id
     user_name = message.from_user.first_name if message.from_user else "usuário"
-    match = re.search(r'Concluir Abertura (.*)', message.text)
+    answer = ''
+    match = re.search(r'Concluir Processo (.*)', message.text)
     branch = match.group(1).strip() if match else 'Filial Desconhecida'
-
     loaded_photos = USER_DATA.get(user_id, {}).get('photos', [])
 
     initial_markup =  ReplyKeyboardMarkup(
@@ -113,17 +163,41 @@ async def on_opening_finalization(client, message):
                 resize_keyboard=True
             )
     
-    answer = dedent(f'''
-    PROCESSO DE ABERTURA FINALIZADO COM SUCESSO.
-    ◾ABERTURA ✅ 
-    ◾{branch}
-    ◾👨‍💻T.I: {user_name}!
-    ÓTIMO DIA, E BOM TRABALHO!'''
-    )
+    if USER_DATA[user_id]['process'] == 'opening':        
+        answer = dedent(f'''
+        PROCESSO DE ABERTURA FINALIZADO COM SUCESSO.
+        ◾ABERTURA ✅ 
+        ◾{USER_DATA[user_id]['branch']}
+        ◾👨‍💻T.I: {user_name}!
+        ÓTIMO DIA, E BOM TRABALHO!'''
+        )
+
+    elif USER_DATA[user_id]['process'] == 'closing':
+        if USER_DATA[user_id]['consistency']: 
+            answer = dedent(f'''
+            PROCESSO DE FECHAMENTO FINALIZADO COM SUCESSO.
+            ◾CONSISTÊNCIA ✅
+            ◾ALTERAÇÃO ✅
+            ◾PAINEL TERMINAL ✅
+            ◾{USER_DATA[user_id]['branch']}
+            ◾👨‍💻T.I: {user_name}!
+            BOM DESCANSO'''
+            )
+        else:    
+            answer = dedent(f'''
+            PROCESSO DE FECHAMENTO FINALIZADO COM SUCESSO.
+            ◾CONSISTÊNCIA ❌
+            ◾ALTERAÇÃO ✅
+            ◾PAINEL TERMINAL ✅
+            ◾{USER_DATA[user_id]['branch']}
+            ◾👨‍💻T.I: {user_name}!
+            BOM DESCANSO!'''
+            )
+    final_answer = answer if answer else 'Proceso finalizado.'
 
     if loaded_photos:
         media_group = [
-            InputMediaPhoto(media=file_id, caption=answer) if i == 0
+            InputMediaPhoto(media=file_id, caption=final_answer) if i == 0
             else InputMediaPhoto(media=file_id)
             for i, file_id in enumerate(loaded_photos)
         ]
@@ -132,9 +206,15 @@ async def on_opening_finalization(client, message):
             chat_id= message.chat.id,
             media= media_group
         )
+
+        await message.reply_text(
+            'Selecione um novo processo se desejar.',
+            reply_markup= initial_markup
+        )
+
     else:
         await message.reply_text(
-            answer,
+            final_answer,
             reply_markup = initial_markup
         )
 
@@ -143,11 +223,6 @@ async def on_opening_finalization(client, message):
         del USER_DATA[user_id]
 
 
-    # send initial keyboard 
-    if loaded_photos:
-        await message.reply_text(
-            reply_markup= initial_markup
-        )
 
 # =========================================================
 # EXECUÇÃO PRINCIPAL
