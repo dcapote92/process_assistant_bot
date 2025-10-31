@@ -13,5 +13,5 @@ branchs = [
 'SM520 - Aracati',
 'SM527 - Zé Walter',
 'SM534 - Caucaia',
-'SM541 - Messejana 1'
+'SM541 - Messejana 1',
 ]

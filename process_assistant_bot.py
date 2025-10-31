@@ -5,7 +5,7 @@ from pyrogram import Client, filters, idle
 from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto
 from pyrogram.enums import ParseMode
 from branch import branchs
-from utils import find_branch, branch_rows
+
 
 
 # Need to create an app on my.telegram.org in order to receive API_ID and API_HASH 
@@ -13,7 +13,8 @@ API_ID = 29867141
 API_HASH = 'd5956629151b2ffc1d26a640d99825ef'
 
 # Get your token on both father
-BOT_TOKEN = '7992622235:AAGYKClKWziOIBFI_QkUBaXKT-HLTn_4LNw'
+#BOT_TOKEN = '7992622235:AAGYKClKWziOIBFI_QkUBaXKT-HLTn_4LNw' #teste
+BOT_TOKEN = '8354851248:AAH_uBXhuHdZ4u2NUHneuWTHwwbWxfeos00' # process_assistant
 
 # this is justo set a session name ( can be anything)
 SESSION_NAME = "process_bot_session" 
@@ -28,7 +29,7 @@ app = Client( SESSION_NAME, api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 # =========================================================
 # HANDLERS
 # =========================================================
-
+branch_rows  = [ [KeyboardButton(branch) for branch in branchs[i:i+2]] for i in range(0, len(branchs), 2) ]
 escaped_branchs = [re.escape(b) for b in branchs]
 regex_pattern = '^(' + '|'.join(escaped_branchs) + ')$'
 USER_DATA = {}
