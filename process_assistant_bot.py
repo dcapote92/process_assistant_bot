@@ -1,5 +1,6 @@
 import asyncio
 import re
+from os import getenv
 from textwrap import dedent
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto
@@ -9,12 +10,11 @@ from branch import branchs
 
 
 # Need to create an app on my.telegram.org in order to receive API_ID and API_HASH 
-API_ID = 29867141 
-API_HASH = 'd5956629151b2ffc1d26a640d99825ef'
+API_ID = getenv('PA_API_ID') 
+API_HASH = getenv('PA_API_HASH')
 
 # Get your token on both father
-#BOT_TOKEN = '7992622235:AAGYKClKWziOIBFI_QkUBaXKT-HLTn_4LNw' #teste
-BOT_TOKEN = '8354851248:AAH_uBXhuHdZ4u2NUHneuWTHwwbWxfeos00' # process_assistant
+BOT_TOKEN = ('PA_TOKEN') # process_assistant
 
 # this is justo set a session name ( can be anything)
 SESSION_NAME = "process_bot_session" 
