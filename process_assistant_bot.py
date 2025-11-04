@@ -10,11 +10,11 @@ from branch import branchs
 
 
 # Need to create an app on my.telegram.org in order to receive API_ID and API_HASH 
-API_ID = getenv('PA_API_ID') 
-API_HASH = getenv('PA_API_HASH')
+API_ID = getenv('API_ID') 
+API_HASH = getenv('API_HASH')
 
 # Get your token on both father
-BOT_TOKEN = ('PA_TOKEN') # process_assistant
+PA_TOKEN = ('PA_TOKEN') # process_assistant
 
 # this is justo set a session name ( can be anything)
 SESSION_NAME = "process_bot_session" 
