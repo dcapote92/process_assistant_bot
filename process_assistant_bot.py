@@ -65,7 +65,7 @@ async def start_command(client: Client, message: Message):
         reply_markup = initial_markup
     )
 
-@app.on_message(filters.command(['stop','cancel']))
+@app.on_message(filters.command(['stop','cancel']) & filters.text)
 async def stop_command(client: Client, message: Message):
     """Catchs /stop or /cancel command to stop bot and remove the custom keyboard"""
     user_id = message.from_user.id
