@@ -76,7 +76,7 @@ async def stop_command(client: Client, message: Message):
 
     await message.reply_text(
         '🛑 **- Processo cancelado.**\n- Teclado ocultado',
-        reply_markup=ReplyKeyboardRemove
+        reply_markup=ReplyKeyboardRemove()
     )
 
 @app.on_message(filters.text & filters.regex('Abertura 🌕'))
