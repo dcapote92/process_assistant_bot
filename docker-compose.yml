@@ -7,8 +7,8 @@ services:
 
     environment:
      BOT_TOKEN: ${PA_TOKEN}
-     API_ID: ${PA_API_ID}
-     API_HASH: ${PA_API_HASH}
+     API_ID: ${API_ID}
+     API_HASH: ${API_HASH}
     network_mode: host
     
     volumes:
