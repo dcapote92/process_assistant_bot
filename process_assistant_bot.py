@@ -3,7 +3,7 @@ import re
 from os import getenv
 from textwrap import dedent
 from pyrogram import Client, filters, idle
-from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto
+from pyrogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, ReplyKeyboardRemove
 from pyrogram.enums import ParseMode
 from branch import branchs
 
@@ -20,6 +20,16 @@ PA_TOKEN = ('PA_TOKEN') # process_assistant
 SESSION_NAME = "process_bot_session" 
 
 
+BRANCH_ROWS  = [ [KeyboardButton(branch) for branch in branchs[i:i+2]] for i in range(0, len(branchs), 2) ]
+ESCAPED_BRANCH = [re.escape(b) for b in branchs]
+REGEX_PATTERN = '^(' + '|'.join(ESCAPED_BRANCH) + ')$'
+USER_DATA = {}
+TARGET_GROUP_IDS = [
+   -1001933126601, # Suporte T.I Regional Ceará
+   # -1002669184395, # Suporte T.I - Lojas
+]
+
+
 # =========================================================
 # Get pyrogram client started
 # =========================================================
@@ -29,18 +39,15 @@ app = Client( SESSION_NAME, api_id=API_ID, api_hash=API_HASH, bot_token=PA_TOKEN
 # =========================================================
 # HANDLERS
 # =========================================================
-branch_rows  = [ [KeyboardButton(branch) for branch in branchs[i:i+2]] for i in range(0, len(branchs), 2) ]
-escaped_branchs = [re.escape(b) for b in branchs]
-regex_pattern = '^(' + '|'.join(escaped_branchs) + ')$'
-USER_DATA = {}
-TARGET_GROUP_IDS = [
-   -1001933126601, # Suporte T.I Regional Ceará
-   # -1002669184395, # Suporte T.I - Lojas
-]
-
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
- 
+    """Catchs /start command to set bot to run and shows a
+    process selection buttons.
+
+    Args:
+        client (Client): Pyrogram Client
+        message (Message): Message
+    """
     user_name = message.from_user.first_name if message.from_user else "usuário"
     initial_markup = ReplyKeyboardMarkup(
         [
@@ -58,11 +65,32 @@ async def start_command(client: Client, message: Message):
         reply_markup = initial_markup
     )
 
+@app.on_message(filters.command(['stop','cancel']))
+async def stop_command(client: Client, message: Message):
+    """Catchs /stop or /cancel command to stop bot and remove the custom keyboard"""
+    user_id = message.from_user.id
+    
+    # Clean user data if exist
+    if user_id in USER_DATA:
+        del USER_DATA[user_id]
+
+    await message.reply_text(
+        '🛑 **- Processo cancelado.**\n- Teclado ocultado',
+        reply_markup=ReplyKeyboardRemove
+    )
+
 @app.on_message(filters.text & filters.regex('Abertura 🌕'))
 async def on_opening(client, message):
+    """Catchs text message to set bot process as opening and shows 
+    a branch selection buttons.
+
+    Args:
+        client (Client): Pyrogram Client
+        message (Message): Message
+    """
     user_id = message.from_user.id
     USER_DATA[user_id] = {'process': 'opening', 'branch': None, 'photos': [], 'consistency': True}
-    opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
+    opening_buttons = ReplyKeyboardMarkup(BRANCH_ROWS, resize_keyboard=True)
     answer = dedent('''
     Bom Dia ☀️!
     Você selecionou Abertura.
@@ -78,7 +106,7 @@ async def on_opening(client, message):
 async def on_closing(client, message):
     user_id = message.from_user.id
     USER_DATA[user_id] = {'process': 'closing', 'branch': None, 'photos': [], 'consistency': True}
-    opening_buttons = ReplyKeyboardMarkup(branch_rows, resize_keyboard=True)
+    opening_buttons = ReplyKeyboardMarkup(BRANCH_ROWS, resize_keyboard=True)
     answer = dedent('''
     Boa Noite 🌑!
     Você selecionou Fechamento.
@@ -89,7 +117,7 @@ async def on_closing(client, message):
         reply_markup = opening_buttons
     )
 
-@app.on_message(filters.text & filters.regex(regex_pattern)) # branch selection
+@app.on_message(filters.text & filters.regex(REGEX_PATTERN)) # branch selection
 async def on_branch_selection(client, message):
     user_id = message.from_user.id
 
