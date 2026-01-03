@@ -6,17 +6,9 @@ services:
     restart: always
 
     environment:
-     BOT_TOKEN: ${PA_TOKEN}
+     PA_TOKEN: ${PA_TOKEN}
      API_ID: ${API_ID}
      API_HASH: ${API_HASH}
-    network_mode: host
-    
-    volumes:
-     - type: volume
-       source: bot_data
-       target: /app
-
-volumes:
- bot_data:         
+       
 
 
